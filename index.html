@@ -81,18 +81,21 @@
   .sintoma:active { transform: scale(.95); }
   .sintoma.active { background: var(--primary-soft); border-color: var(--primary); }
   .reco { margin-top: 12px; animation: fadeUp .3s ease; }
-  .reco h3 { margin: 0 0 8px; font-size: .95rem; }
-  .reco-list { display: flex; flex-wrap: wrap; gap: 8px; }
-  .reco-med {
-    border: 0; background: var(--primary); color: #fff; border-radius: 999px;
-    padding: 8px 14px; font-size: .88rem; cursor: pointer;
+  .reco-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .reco h3 { margin: 0; font-size: .95rem; }
+  .ver-todos {
+    flex: none; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 999px; padding: 6px 12px; font-size: .82rem; cursor: pointer;
   }
   .reco .nota { margin: 10px 0 0; font-size: .85rem; color: var(--muted); }
   .reco .alerta {
     margin: 10px 0 0; font-size: .85rem; background: #fee2e2; color: #7f1d1d;
     padding: 8px 10px; border-radius: 10px;
   }
-  .card.destacada { box-shadow: 0 0 0 2px var(--primary); }
+  /* Medicamento agotado: se ve en gris */
+  .card.agotado { background: #eef0f2; }
+  .card.agotado summary, .card.agotado .body { filter: grayscale(1); opacity: .55; }
+  .badge.agotado-badge { background: #d1d5db; color: #374151; }
   header h1 { margin: 6px 0 4px; font-size: 1.6rem; }
   header p { margin: 0; opacity: .9; font-size: .95rem; }
 
@@ -124,25 +127,6 @@
     padding: 10px 14px;
     font-size: .88rem;
   }
-
-  .chips {
-    display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px;
-    scrollbar-width: none;
-  }
-  .chips::-webkit-scrollbar { display: none; }
-  .chip {
-    flex: none;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text);
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-size: .9rem;
-    cursor: pointer;
-    transition: background .2s, color .2s, transform .1s;
-  }
-  .chip:active { transform: scale(.96); }
-  .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
   .count { color: var(--muted); font-size: .85rem; margin: 4px 2px 10px; }
 
@@ -244,7 +228,6 @@
     <div id="reco"></div>
   </section>
 
-  <nav class="chips" id="chips"></nav>
   <div class="count" id="count"></div>
   <section class="list" id="list"></section>
   <div class="empty" id="empty">😕 No se encontró ningún medicamento.<br>Prueba con otro síntoma.</div>
@@ -254,6 +237,7 @@
 
 <script>
 // ===== DATOS: editar aquí para agregar o quitar medicamentos =====
+// Para marcar uno como agotado, agregar  agotado: true  (se verá en gris)
 const CATEGORIAS = {
   dolor:     { nombre: "Dolor y fiebre",  emoji: "🤕" },
   gripe:     { nombre: "Gripe y alergia", emoji: "🤧" },
@@ -457,7 +441,7 @@ MEDICAMENTOS.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 const $ = id => document.getElementById(id);
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-let catActiva = "todos";
+let sintomaActivo = null;
 
 function resaltar(texto, q) {
   if (!q) return esc(texto);
@@ -466,29 +450,25 @@ function resaltar(texto, q) {
   return esc(texto.slice(0, i)) + "<mark>" + esc(texto.slice(i, i + q.length)) + "</mark>" + esc(texto.slice(i + q.length));
 }
 
-function renderChips() {
-  const items = [["todos", "Todos", "✨"], ...Object.entries(CATEGORIAS).map(([k, c]) => [k, c.nombre, c.emoji])];
-  $("chips").innerHTML = items.map(([k, n, e]) =>
-    `<button class="chip ${k === catActiva ? "active" : ""}" data-cat="${k}">${e} ${n}</button>`).join("");
-}
-
 function render() {
   const q = norm($("q").value.trim());
   $("searchBox").classList.toggle("has-text", !!q);
-  const lista = MEDICAMENTOS.filter(m =>
-    (catActiva === "todos" || m.cat === catActiva) &&
-    (!q || norm([m.nombre, m.activo, m.uso, m.claves].join(" ")).includes(q)));
+  const s = SINTOMAS[sintomaActivo];
+  const lista = (s ? s.meds.map(n => MEDICAMENTOS.find(m => m.nombre === n)) : MEDICAMENTOS)
+    .filter(m => !q || norm([m.nombre, m.activo, m.uso, m.claves].join(" ")).includes(q))
+    .sort((a, b) => !!a.agotado - !!b.agotado);
 
   $("list").innerHTML = lista.map((m, i) => {
     const c = CATEGORIAS[m.cat];
     const fila = (t, v, cls = "") => v ? `<div class="row ${cls}"><h4>${t}</h4><p>${esc(v)}</p></div>` : "";
     return `
-      <details class="card ${m.receta ? "rx" : ""}" style="animation-delay:${i * 30}ms">
+      <details class="card ${m.receta ? "rx" : ""} ${m.agotado ? "agotado" : ""}" style="animation-delay:${i * 30}ms">
         <summary>
           <div class="emoji">${c.emoji}</div>
           <div class="title">
             <strong>${resaltar(m.nombre, q)}</strong>
             <span>${resaltar(m.uso, q)}</span>
+            ${m.agotado ? '<div class="badge agotado-badge">Agotado</div>' : ""}
             ${m.receta ? '<div class="badge">Solo con indicación médica</div>' : ""}
           </div>
           <div class="arrow">▾</div>
@@ -506,63 +486,49 @@ function render() {
   $("empty").classList.toggle("show", lista.length === 0);
 }
 
-$("q").addEventListener("input", render);
-$("clear").addEventListener("click", () => { $("q").value = ""; render(); $("q").focus(); });
-$("chips").addEventListener("click", e => {
-  const b = e.target.closest(".chip");
-  if (!b) return;
-  catActiva = b.dataset.cat;
-  renderChips(); render();
+$("q").addEventListener("input", () => {
+  if (sintomaActivo !== null) { sintomaActivo = null; renderSintomas(); }
+  render();
 });
-
-let sintomaActivo = null;
-
+$("clear").addEventListener("click", () => { $("q").value = ""; render(); $("q").focus(); });
 function renderSintomas() {
   $("sintomas").innerHTML = SINTOMAS.map((s, i) =>
     `<button class="sintoma ${i === sintomaActivo ? "active" : ""}" data-i="${i}"><span>${s.emoji}</span>${s.nombre}</button>`).join("");
   const s = SINTOMAS[sintomaActivo];
   $("reco").innerHTML = !s ? "" : `
     <div class="reco">
-      <h3>Para ${s.nombre.toLowerCase()} puedes usar:</h3>
-      <div class="reco-list">
-        ${s.meds.map(n => `<button class="reco-med" data-med="${esc(n)}">${esc(n)}</button>`).join("")}
+      <div class="reco-top">
+        <h3>Para ${s.nombre.toLowerCase()} 👇</h3>
+        <button class="ver-todos" id="verTodos">✕ Ver todos</button>
       </div>
-      <p class="nota">👉 Elige <strong>solo uno</strong> de la lista y revisa sus precauciones. Toca un nombre para ver el detalle.</p>
+      <p class="nota">👉 Elige <strong>solo uno</strong> de los medicamentos de abajo y revisa sus precauciones.</p>
       ${s.alerta ? `<p class="alerta">🚨 ${esc(s.alerta)}</p>` : ""}
     </div>`;
+}
+
+function elegirSintoma(i) {
+  sintomaActivo = i;
+  renderSintomas();
+  render();
+  if (i !== null) {
+    const top = $("reco").getBoundingClientRect().top + window.scrollY - 80;
+    window.scrollTo({ top, behavior: "smooth" });
+  }
 }
 
 $("sintomas").addEventListener("click", e => {
   const b = e.target.closest(".sintoma");
   if (!b) return;
   const i = Number(b.dataset.i);
-  sintomaActivo = sintomaActivo === i ? null : i;
-  renderSintomas();
+  $("q").value = "";
+  elegirSintoma(sintomaActivo === i ? null : i);
 });
 
 $("reco").addEventListener("click", e => {
-  const b = e.target.closest(".reco-med");
-  if (!b) return;
-  if (catActiva !== "todos" || $("q").value) {
-    catActiva = "todos";
-    $("q").value = "";
-    renderChips(); render();
-  }
-  const i = MEDICAMENTOS.findIndex(m => m.nombre === b.dataset.med);
-  const card = $("list").children[i];
-  if (!card) return;
-  $("list").querySelectorAll("details[open]").forEach(d => d.open = false);
-  card.open = true;
-  card.classList.add("destacada");
-  setTimeout(() => card.classList.remove("destacada"), 2000);
-  setTimeout(() => {
-    const top = card.getBoundingClientRect().top + window.scrollY - 120;
-    window.scrollTo({ top, behavior: "smooth" });
-  }, 50);
+  if (e.target.closest("#verTodos")) elegirSintoma(null);
 });
 
 renderSintomas();
-renderChips();
 render();
 
 // Ocultar la pantalla de carga (mínimo 1.2 s para que se vea la animación)
