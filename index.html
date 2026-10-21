@@ -94,8 +94,14 @@
   }
   /* Medicamento agotado: se ve en gris */
   .card.agotado { background: #eef0f2; }
-  .card.agotado summary, .card.agotado .body { filter: grayscale(1); opacity: .55; }
+  .card.agotado summary, .card.agotado .body .row { filter: grayscale(1); opacity: .55; }
   .badge.agotado-badge { background: #d1d5db; color: #374151; }
+  .btn-stock {
+    margin-top: 14px; width: 100%; border: 1px dashed #9ca3af; background: transparent;
+    color: var(--muted); border-radius: 10px; padding: 10px; font-size: .88rem; cursor: pointer;
+  }
+  .card.agotado .btn-stock { border: 0; background: #16a34a; color: #fff; font-weight: 600; }
+  .btn-stock:disabled { opacity: .6; cursor: wait; }
   header h1 { margin: 6px 0 4px; font-size: 1.6rem; }
   header p { margin: 0; opacity: .9; font-size: .95rem; }
 
@@ -436,6 +442,9 @@ const SINTOMAS = [
 ];
 // ===== FIN DE DATOS =====
 
+// URL del script de Google (ver INSTRUCCIONES.md). Vacío = no se puede marcar agotados desde la página.
+const API_AGOTADOS = "";
+
 MEDICAMENTOS.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
 const $ = id => document.getElementById(id);
@@ -478,6 +487,8 @@ function render() {
           ${fila("Cómo tomarlo (adultos)", m.dosis)}
           ${fila("Precauciones", m.precaucion)}
           ${fila("No combinar con", m.noCombinar, "alert")}
+          ${API_AGOTADOS ? `<button class="btn-stock" data-med="${esc(m.nombre)}">
+            ${m.agotado ? "✅ Ya hay de nuevo: marcar como disponible" : "🚫 Se acabó: marcar como agotado"}</button>` : ""}
         </div>
       </details>`;
   }).join("");
@@ -531,9 +542,52 @@ $("reco").addEventListener("click", e => {
 renderSintomas();
 render();
 
-// Ocultar la pantalla de carga (mínimo 1.2 s para que se vea la animación)
+// ----- Agotados compartidos (hoja de Google) -----
+function aplicarAgotados(nombres) {
+  MEDICAMENTOS.forEach(m => m.agotado = nombres.includes(m.nombre));
+}
+
+function cargarAgotados() {
+  if (!API_AGOTADOS) return Promise.resolve();
+  return fetch(API_AGOTADOS)
+    .then(r => r.json())
+    .then(d => { aplicarAgotados(d.agotados); render(); })
+    .catch(() => {});
+}
+
+$("list").addEventListener("click", e => {
+  const b = e.target.closest(".btn-stock");
+  if (!b) return;
+  const m = MEDICAMENTOS.find(x => x.nombre === b.dataset.med);
+  const nuevo = !m.agotado;
+  if (!confirm(nuevo ? `¿Marcar "${m.nombre}" como agotado?` : `¿Marcar "${m.nombre}" como disponible otra vez?`)) return;
+  b.disabled = true;
+  b.textContent = "Guardando…";
+  fetch(API_AGOTADOS, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ nombre: m.nombre, agotado: nuevo }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      aplicarAgotados(d.agotados);
+      render();
+      const card = $("list").querySelector(`.btn-stock[data-med="${CSS.escape(m.nombre)}"]`)?.closest("details");
+      if (card) { card.open = true; card.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    })
+    .catch(() => {
+      alert("No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.");
+      render();
+    });
+});
+
+// Ocultar la pantalla de carga cuando cargue la página y la lista de agotados
+// (mínimo 1.2 s para que se vea la animación, máximo 5 s esperando a Google)
 const inicio = Date.now();
-window.addEventListener("load", () => {
+Promise.race([
+  Promise.all([new Promise(r => window.addEventListener("load", r)), cargarAgotados()]),
+  new Promise(r => setTimeout(r, 5000)),
+]).then(() => {
   setTimeout(() => $("loader").classList.add("oculto"), Math.max(0, 1200 - (Date.now() - inicio)));
 });
 </script>
