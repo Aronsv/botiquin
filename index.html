@@ -36,8 +36,63 @@
   header .icon {
     font-size: 40px;
     display: inline-block;
-    animation: pulse 2.4s ease-in-out infinite;
+    animation: latido 1.6s ease-in-out infinite;
   }
+
+  /* Pantalla de carga */
+  #loader {
+    position: fixed; inset: 0; z-index: 50;
+    background: linear-gradient(135deg, #d63a3a, #b42323);
+    color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    transition: opacity .5s ease, visibility .5s;
+  }
+  #loader.oculto { opacity: 0; visibility: hidden; }
+  #loader .icon { font-size: 72px; animation: latido 1.1s ease-in-out infinite; }
+  #loader p { margin: 0; font-size: 1rem; opacity: .9; }
+  #loader .dots span { animation: parpadeo 1.2s infinite; }
+  #loader .dots span:nth-child(2) { animation-delay: .2s; }
+  #loader .dots span:nth-child(3) { animation-delay: .4s; }
+  #loader svg { width: 160px; height: 40px; }
+  #loader svg path {
+    fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 260; stroke-dashoffset: 260;
+    animation: ecg 1.6s linear infinite;
+  }
+
+  /* ¿Qué sientes? */
+  .sientes {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .sientes h2 { margin: 0 0 2px; font-size: 1.05rem; }
+  .sientes > p { margin: 0 0 10px; color: var(--muted); font-size: .88rem; }
+  .sintomas { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+  .sintoma {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 12px; padding: 10px 6px; font-size: .85rem; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: transform .15s, background .2s, border-color .2s;
+  }
+  .sintoma span { font-size: 1.4rem; }
+  .sintoma:active { transform: scale(.95); }
+  .sintoma.active { background: var(--primary-soft); border-color: var(--primary); }
+  .reco { margin-top: 12px; animation: fadeUp .3s ease; }
+  .reco h3 { margin: 0 0 8px; font-size: .95rem; }
+  .reco-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .reco-med {
+    border: 0; background: var(--primary); color: #fff; border-radius: 999px;
+    padding: 8px 14px; font-size: .88rem; cursor: pointer;
+  }
+  .reco .nota { margin: 10px 0 0; font-size: .85rem; color: var(--muted); }
+  .reco .alerta {
+    margin: 10px 0 0; font-size: .85rem; background: #fee2e2; color: #7f1d1d;
+    padding: 8px 10px; border-radius: 10px;
+  }
+  .card.destacada { box-shadow: 0 0 0 2px var(--primary); }
   header h1 { margin: 6px 0 4px; font-size: 1.6rem; }
   header p { margin: 0; opacity: .9; font-size: .95rem; }
 
@@ -146,11 +201,24 @@
 
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  @keyframes latido {
+    0%, 40%, 100% { transform: scale(1); }
+    10% { transform: scale(1.18); }
+    20% { transform: scale(1.04); }
+    30% { transform: scale(1.14); }
+  }
+  @keyframes ecg { to { stroke-dashoffset: 0; } }
+  @keyframes parpadeo { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
+
+<div id="loader" aria-hidden="true">
+  <div class="icon">🩺</div>
+  <svg viewBox="0 0 160 40"><path d="M0 20 H50 L58 8 L66 32 L74 4 L82 36 L90 20 H160"/></svg>
+  <p>Cargando botiquín<span class="dots"><span>.</span><span>.</span><span>.</span></span></p>
+</div>
 
 <header>
   <div class="icon">🩺</div>
@@ -168,6 +236,13 @@
   <div class="disclaimer">
     ⚠️ <strong>Información orientativa.</strong> No reemplaza la consulta médica. Lee siempre el envase y, ante dudas, embarazo, alergias o enfermedades crónicas, consulta al médico ocupacional.
   </div>
+
+  <section class="sientes">
+    <h2>🤔 ¿Qué sientes?</h2>
+    <p>Toca un síntoma y te mostramos qué medicamentos del botiquín pueden ayudar.</p>
+    <div class="sintomas" id="sintomas"></div>
+    <div id="reco"></div>
+  </section>
 
   <nav class="chips" id="chips"></nav>
   <div class="count" id="count"></div>
@@ -352,7 +427,32 @@ const MEDICAMENTOS = [
     claves: "corticoide inflamacion alergia"
   },
 ];
+
+// Síntoma → medicamentos sugeridos (usar el nombre exacto de la lista de arriba)
+const SINTOMAS = [
+  { nombre: "Dolor de cabeza", emoji: "🤕", meds: ["Paracetamol 500 mg", "Paramidol", "Ibuprofeno", "Cefadol"],
+    alerta: "Si es el peor dolor de cabeza de tu vida, viene con fiebre alta y cuello rígido, o tras un golpe, acude a emergencia." },
+  { nombre: "Fiebre", emoji: "🌡️", meds: ["Paracetamol 500 mg", "Paramidol", "Ibuprofeno"],
+    alerta: "Si la fiebre supera 39 °C o dura más de 3 días, consulta al médico." },
+  { nombre: "Gripe", emoji: "🤧", meds: ["Fulgrip Plus", "Paracetamol 500 mg"],
+    alerta: "Si hay dificultad para respirar o dolor en el pecho, acude al médico." },
+  { nombre: "Alergia", emoji: "🌼", meds: ["Cetirizina"],
+    alerta: "Si se hinchan labios, lengua o cara, o cuesta respirar, es una emergencia." },
+  { nombre: "Dolor muscular", emoji: "💪", meds: ["Miodel", "Panafebril Relax 35 mg", "Naproxeno 550 mg", "Ibuprofeno"] },
+  { nombre: "Dolor menstrual", emoji: "🩸", meds: ["Ibuprofeno", "Naproxeno 550 mg", "Apronax"] },
+  { nombre: "Dolor de muela", emoji: "🦷", meds: ["Ibuprofeno", "Naproxeno 550 mg", "Paracetamol 500 mg"] },
+  { nombre: "Cólico", emoji: "😣", meds: ["Plidan", "Hugal"],
+    alerta: "Si el dolor es muy fuerte, no cede o está en la parte baja derecha del abdomen, acude al médico." },
+  { nombre: "Acidez", emoji: "🔥", meds: ["Sal de Andrews"] },
+  { nombre: "Gases", emoji: "🎈", meds: ["Gaseovet 80 mg"] },
+  { nombre: "Diarrea", emoji: "🚽", meds: ["Bismutol", "Bismu Plus", "Bismuid"],
+    alerta: "Toma abundante líquido. Si hay sangre en las heces o fiebre alta, consulta al médico." },
+  { nombre: "Mareo", emoji: "😵‍💫", meds: ["Dimenhidrinato"],
+    alerta: "Si el mareo viene con dolor de pecho, debilidad en un lado del cuerpo o dificultad para hablar, es una emergencia." },
+];
 // ===== FIN DE DATOS =====
+
+MEDICAMENTOS.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
 const $ = id => document.getElementById(id);
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -415,8 +515,61 @@ $("chips").addEventListener("click", e => {
   renderChips(); render();
 });
 
+let sintomaActivo = null;
+
+function renderSintomas() {
+  $("sintomas").innerHTML = SINTOMAS.map((s, i) =>
+    `<button class="sintoma ${i === sintomaActivo ? "active" : ""}" data-i="${i}"><span>${s.emoji}</span>${s.nombre}</button>`).join("");
+  const s = SINTOMAS[sintomaActivo];
+  $("reco").innerHTML = !s ? "" : `
+    <div class="reco">
+      <h3>Para ${s.nombre.toLowerCase()} puedes usar:</h3>
+      <div class="reco-list">
+        ${s.meds.map(n => `<button class="reco-med" data-med="${esc(n)}">${esc(n)}</button>`).join("")}
+      </div>
+      <p class="nota">👉 Elige <strong>solo uno</strong> de la lista y revisa sus precauciones. Toca un nombre para ver el detalle.</p>
+      ${s.alerta ? `<p class="alerta">🚨 ${esc(s.alerta)}</p>` : ""}
+    </div>`;
+}
+
+$("sintomas").addEventListener("click", e => {
+  const b = e.target.closest(".sintoma");
+  if (!b) return;
+  const i = Number(b.dataset.i);
+  sintomaActivo = sintomaActivo === i ? null : i;
+  renderSintomas();
+});
+
+$("reco").addEventListener("click", e => {
+  const b = e.target.closest(".reco-med");
+  if (!b) return;
+  if (catActiva !== "todos" || $("q").value) {
+    catActiva = "todos";
+    $("q").value = "";
+    renderChips(); render();
+  }
+  const i = MEDICAMENTOS.findIndex(m => m.nombre === b.dataset.med);
+  const card = $("list").children[i];
+  if (!card) return;
+  $("list").querySelectorAll("details[open]").forEach(d => d.open = false);
+  card.open = true;
+  card.classList.add("destacada");
+  setTimeout(() => card.classList.remove("destacada"), 2000);
+  setTimeout(() => {
+    const top = card.getBoundingClientRect().top + window.scrollY - 120;
+    window.scrollTo({ top, behavior: "smooth" });
+  }, 50);
+});
+
+renderSintomas();
 renderChips();
 render();
+
+// Ocultar la pantalla de carga (mínimo 1.2 s para que se vea la animación)
+const inicio = Date.now();
+window.addEventListener("load", () => {
+  setTimeout(() => $("loader").classList.add("oculto"), Math.max(0, 1200 - (Date.now() - inicio)));
+});
 </script>
 </body>
 </html>
