@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Botiquín del Área</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --text: #1d2733;
+    --muted: #5d6b7a;
+    --border: #e1e6eb;
+    --primary: #d63a3a;
+    --primary-soft: #fdeceb;
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --rx: #7c3aed;
+    --rx-soft: #ede9fe;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+  header {
+    background: linear-gradient(135deg, #d63a3a, #b42323);
+    color: #fff;
+    padding: 28px 16px 64px;
+    text-align: center;
+  }
+  header .icon {
+    font-size: 40px;
+    display: inline-block;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  header h1 { margin: 6px 0 4px; font-size: 1.6rem; }
+  header p { margin: 0; opacity: .9; font-size: .95rem; }
+
+  main { max-width: 760px; margin: -44px auto 0; padding: 0 16px 32px; }
+
+  .search {
+    position: sticky; top: 8px; z-index: 5;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 20px rgba(0,0,0,.08);
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 14px;
+  }
+  .search input {
+    flex: 1; border: 0; outline: 0; font-size: 1rem;
+    padding: 12px 0; background: transparent; color: var(--text);
+  }
+  .search button {
+    border: 0; background: none; font-size: 1.1rem; color: var(--muted);
+    cursor: pointer; visibility: hidden;
+  }
+  .search.has-text button { visibility: visible; }
+
+  .disclaimer {
+    margin: 14px 0;
+    background: var(--warn-soft);
+    color: #78350f;
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: .88rem;
+  }
+
+  .chips {
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: .9rem;
+    cursor: pointer;
+    transition: background .2s, color .2s, transform .1s;
+  }
+  .chip:active { transform: scale(.96); }
+  .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  .count { color: var(--muted); font-size: .85rem; margin: 4px 2px 10px; }
+
+  .list { display: grid; gap: 10px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    animation: fadeUp .35s ease both;
+  }
+  .card summary {
+    list-style: none;
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px;
+    cursor: pointer;
+  }
+  .card summary::-webkit-details-marker { display: none; }
+  .emoji {
+    flex: none; width: 44px; height: 44px; border-radius: 12px;
+    display: grid; place-items: center; font-size: 1.4rem;
+    background: var(--primary-soft);
+  }
+  .card.rx .emoji { background: var(--rx-soft); }
+  .title { flex: 1; min-width: 0; }
+  .title strong { display: block; font-size: 1.02rem; }
+  .title span { color: var(--muted); font-size: .88rem; }
+  .arrow { color: var(--muted); transition: transform .25s; }
+  .card[open] .arrow { transform: rotate(180deg); }
+
+  .badge {
+    display: inline-block; font-size: .72rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px; margin-top: 4px;
+    background: var(--rx-soft); color: var(--rx);
+  }
+
+  .body { padding: 0 14px 14px; animation: fadeIn .3s ease; }
+  .row { margin-top: 10px; }
+  .row h4 {
+    margin: 0 0 2px; font-size: .75rem; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--muted);
+  }
+  .row p { margin: 0; font-size: .95rem; }
+  .row.alert p {
+    background: var(--warn-soft); color: #78350f;
+    padding: 8px 10px; border-radius: 10px;
+  }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; display: none; }
+  .empty.show { display: block; animation: fadeIn .3s ease; }
+
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 16px 28px; }
+
+  mark { background: #fde68a; color: inherit; border-radius: 3px; padding: 0 1px; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="icon">🩺</div>
+  <h1>Botiquín del Área</h1>
+  <p>Qué hay y para qué sirve cada medicamento</p>
+</header>
+
+<main>
+  <label class="search" id="searchBox">
+    <span>🔍</span>
+    <input id="q" type="search" placeholder="Ej: fiebre, diarrea, cabeza…" autocomplete="off">
+    <button type="button" id="clear" aria-label="Borrar búsqueda">✕</button>
+  </label>
+
+  <div class="disclaimer">
+    ⚠️ <strong>Información orientativa.</strong> No reemplaza la consulta médica. Lee siempre el envase y, ante dudas, embarazo, alergias o enfermedades crónicas, consulta al médico ocupacional.
+  </div>
+
+  <nav class="chips" id="chips"></nav>
+  <div class="count" id="count"></div>
+  <section class="list" id="list"></section>
+  <div class="empty" id="empty">😕 No se encontró ningún medicamento.<br>Prueba con otro síntoma.</div>
+</main>
+
+<footer>Última actualización: octubre 2026</footer>
+
+<script>
+// ===== DATOS: editar aquí para agregar o quitar medicamentos =====
+const CATEGORIAS = {
+  dolor:     { nombre: "Dolor y fiebre",  emoji: "🤕" },
+  gripe:     { nombre: "Gripe y alergia", emoji: "🤧" },
+  estomago:  { nombre: "Estómago",        emoji: "🫃" },
+  mareo:     { nombre: "Mareo",           emoji: "🤢" },
+  muscular:  { nombre: "Muscular",        emoji: "💪" },
+  receta:    { nombre: "Con receta",      emoji: "💊" },
+};
+
+const MEDICAMENTOS = [
+  {
+    nombre: "Paracetamol 500 mg", activo: "Paracetamol", cat: "dolor",
+    uso: "Dolor leve a moderado (cabeza, muelas, cuerpo) y fiebre.",
+    dosis: "1 a 2 tabletas cada 6–8 horas. No más de 6 tabletas al día.",
+    precaucion: "Evitar con alcohol o enfermedad del hígado.",
+    noCombinar: "Paramidol, Fulgrip Plus u otros que contengan paracetamol.",
+    claves: "cabeza fiebre temperatura dolor muela cuerpo"
+  },
+  {
+    nombre: "Paramidol", activo: "Paracetamol", cat: "dolor",
+    uso: "Dolor y fiebre.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Evitar con alcohol o enfermedad del hígado.",
+    noCombinar: "Paracetamol, Fulgrip Plus u otros que contengan paracetamol.",
+    claves: "cabeza fiebre temperatura dolor"
+  },
+  {
+    nombre: "Ibuprofeno", activo: "Ibuprofeno", cat: "dolor",
+    uso: "Dolor, inflamación y fiebre. Útil en dolores musculares y menstruales.",
+    dosis: "Tomar con alimentos. Seguir la dosis del envase según los mg de la tableta.",
+    precaucion: "No usar con gastritis, úlcera, problemas renales o embarazo.",
+    noCombinar: "Naproxeno, Apronax, Aspirina u otros antiinflamatorios.",
+    claves: "inflamacion dolor fiebre muscular menstrual regla cabeza muela"
+  },
+  {
+    nombre: "Naproxeno 550 mg", activo: "Naproxeno sódico", cat: "dolor",
+    uso: "Dolor e inflamación: muscular, articular, menstrual, dental.",
+    dosis: "1 tableta cada 12 horas con alimentos.",
+    precaucion: "No usar con gastritis, úlcera, problemas renales o embarazo.",
+    noCombinar: "Apronax (es el mismo medicamento), Ibuprofeno, Aspirina.",
+    claves: "inflamacion dolor muscular articulacion menstrual muela golpe"
+  },
+  {
+    nombre: "Apronax", activo: "Naproxeno sódico", cat: "dolor",
+    uso: "Dolor e inflamación: muscular, articular, menstrual, dental.",
+    dosis: "Seguir la dosis indicada en el envase. Tomar con alimentos.",
+    precaucion: "No usar con gastritis, úlcera, problemas renales o embarazo.",
+    noCombinar: "Naproxeno (es el mismo medicamento), Ibuprofeno, Aspirina.",
+    claves: "inflamacion dolor muscular articulacion menstrual muela golpe"
+  },
+  {
+    nombre: "Aspirina", activo: "Ácido acetilsalicílico", cat: "dolor",
+    uso: "Dolor leve a moderado y fiebre.",
+    dosis: "Seguir la dosis del envase. Tomar con alimentos.",
+    precaucion: "No usar con gastritis, úlcera, problemas de coagulación o si toma anticoagulantes.",
+    noCombinar: "Ibuprofeno, Naproxeno, Apronax, Bismutol / Bismu Plus / Bismuid.",
+    claves: "dolor cabeza fiebre"
+  },
+  {
+    nombre: "Cefadol", activo: "Ver envase", cat: "dolor",
+    uso: "Analgésico y antimigrañoso: dolor de cabeza y migraña.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Si el dolor de cabeza es muy intenso o distinto al habitual, acudir al médico.",
+    claves: "cabeza migraña jaqueca dolor"
+  },
+  {
+    nombre: "Fulgrip Plus", activo: "Antigripal combinado (ver envase)", cat: "gripe",
+    uso: "Síntomas de gripe y resfrío: congestión, estornudos, malestar, fiebre.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Puede causar somnolencia. Precaución si tiene presión alta.",
+    noCombinar: "Otros productos con paracetamol (Paracetamol, Paramidol).",
+    claves: "gripe resfrio resfriado congestion nariz estornudo fiebre malestar"
+  },
+  {
+    nombre: "Cetirizina", activo: "Cetirizina", cat: "gripe",
+    uso: "Alergias: estornudos, picazón, ronchas, ojos llorosos, rinitis.",
+    dosis: "1 tableta (10 mg) al día.",
+    precaucion: "Puede causar somnolencia. Evitar alcohol.",
+    claves: "alergia picazon ronchas estornudo rinitis ojos urticaria comezon"
+  },
+  {
+    nombre: "Sal de Andrews", activo: "Antiácido efervescente", cat: "estomago",
+    uso: "Acidez, agruras e indigestión.",
+    dosis: "1 sobre disuelto en un vaso de agua.",
+    precaucion: "Contiene sodio: precaución si tiene presión alta.",
+    claves: "acidez agruras indigestion llenura estomago ardor"
+  },
+  {
+    nombre: "Gaseovet 80 mg", activo: "Simeticona", cat: "estomago",
+    uso: "Gases, hinchazón y distensión abdominal.",
+    dosis: "Seguir la dosis del envase, después de las comidas.",
+    claves: "gases hinchazon barriga llenura estomago"
+  },
+  {
+    nombre: "Plidan", activo: "Antiespasmódico (ver envase)", cat: "estomago",
+    uso: "Cólicos y dolor abdominal tipo retorcijón.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Si el dolor abdominal es muy fuerte o no mejora, acudir al médico.",
+    noCombinar: "Hugal (también es para cólicos).",
+    claves: "colico dolor barriga abdomen estomago retorcijon"
+  },
+  {
+    nombre: "Hugal", activo: "Ver envase", cat: "estomago",
+    uso: "Cólicos y dolor abdominal.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Si el dolor abdominal es muy fuerte o no mejora, acudir al médico.",
+    noCombinar: "Plidan (también es para cólicos).",
+    claves: "colico dolor barriga abdomen estomago retorcijon"
+  },
+  {
+    nombre: "Bismutol", activo: "Subsalicilato de bismuto", cat: "estomago",
+    uso: "Diarrea, malestar estomacal, náuseas e indigestión.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Puede oscurecer la lengua y las heces (es normal).",
+    noCombinar: "Bismu Plus y Bismuid (mismo componente), Aspirina.",
+    claves: "diarrea estomago malestar nauseas indigestion"
+  },
+  {
+    nombre: "Bismu Plus", activo: "Subsalicilato de bismuto", cat: "estomago",
+    uso: "Diarrea, malestar estomacal, náuseas e indigestión.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Puede oscurecer la lengua y las heces (es normal).",
+    noCombinar: "Bismutol y Bismuid (mismo componente), Aspirina.",
+    claves: "diarrea estomago malestar nauseas indigestion"
+  },
+  {
+    nombre: "Bismuid", activo: "Subsalicilato de bismuto", cat: "estomago",
+    uso: "Diarrea, malestar estomacal, náuseas e indigestión.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Puede oscurecer la lengua y las heces (es normal).",
+    noCombinar: "Bismutol y Bismu Plus (mismo componente), Aspirina.",
+    claves: "diarrea estomago malestar nauseas indigestion"
+  },
+  {
+    nombre: "Dimenhidrinato", activo: "Dimenhidrinato", cat: "mareo",
+    uso: "Mareo, náuseas y vómitos (incluido mareo en viajes).",
+    dosis: "Seguir la dosis del envase. Para viajes, 30 minutos antes.",
+    precaucion: "Produce somnolencia: no conducir ni operar maquinaria.",
+    claves: "mareo nauseas vomito viaje"
+  },
+  {
+    nombre: "Miodel", activo: "Relajante muscular (ver envase)", cat: "muscular",
+    uso: "Dolor y contractura muscular.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Puede causar somnolencia: no conducir ni operar maquinaria.",
+    claves: "contractura muscular espalda cuello dolor tension"
+  },
+  {
+    nombre: "Panafebril Relax 35 mg", activo: "Ver envase", cat: "muscular",
+    uso: "Analgésico y relajante muscular.",
+    dosis: "Seguir la dosis indicada en el envase.",
+    precaucion: "Puede causar somnolencia: no conducir ni operar maquinaria.",
+    claves: "contractura muscular espalda cuello dolor tension"
+  },
+  {
+    nombre: "Amlodipino 10 mg", activo: "Amlodipino", cat: "receta", receta: true,
+    uso: "Tratamiento de la presión arterial alta.",
+    precaucion: "Solo para personas con este tratamiento indicado por su médico. No es para dolor ni malestar.",
+    claves: "presion arterial hipertension"
+  },
+  {
+    nombre: "Amoxicilina", activo: "Amoxicilina", cat: "receta", receta: true,
+    uso: "Antibiótico para infecciones bacterianas.",
+    precaucion: "Solo con receta. No sirve para gripe ni resfrío. Tomarlo sin indicación genera resistencia.",
+    claves: "antibiotico infeccion"
+  },
+  {
+    nombre: "Dexametasona", activo: "Dexametasona", cat: "receta", receta: true,
+    uso: "Corticoide para inflamación y alergias severas.",
+    precaucion: "Solo con indicación médica.",
+    claves: "corticoide inflamacion alergia"
+  },
+];
+// ===== FIN DE DATOS =====
+
+const $ = id => document.getElementById(id);
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let catActiva = "todos";
+
+function resaltar(texto, q) {
+  if (!q) return esc(texto);
+  const n = norm(texto), i = n.indexOf(q);
+  if (i < 0) return esc(texto);
+  return esc(texto.slice(0, i)) + "<mark>" + esc(texto.slice(i, i + q.length)) + "</mark>" + esc(texto.slice(i + q.length));
+}
+
+function renderChips() {
+  const items = [["todos", "Todos", "✨"], ...Object.entries(CATEGORIAS).map(([k, c]) => [k, c.nombre, c.emoji])];
+  $("chips").innerHTML = items.map(([k, n, e]) =>
+    `<button class="chip ${k === catActiva ? "active" : ""}" data-cat="${k}">${e} ${n}</button>`).join("");
+}
+
+function render() {
+  const q = norm($("q").value.trim());
+  $("searchBox").classList.toggle("has-text", !!q);
+  const lista = MEDICAMENTOS.filter(m =>
+    (catActiva === "todos" || m.cat === catActiva) &&
+    (!q || norm([m.nombre, m.activo, m.uso, m.claves].join(" ")).includes(q)));
+
+  $("list").innerHTML = lista.map((m, i) => {
+    const c = CATEGORIAS[m.cat];
+    const fila = (t, v, cls = "") => v ? `<div class="row ${cls}"><h4>${t}</h4><p>${esc(v)}</p></div>` : "";
+    return `
+      <details class="card ${m.receta ? "rx" : ""}" style="animation-delay:${i * 30}ms">
+        <summary>
+          <div class="emoji">${c.emoji}</div>
+          <div class="title">
+            <strong>${resaltar(m.nombre, q)}</strong>
+            <span>${resaltar(m.uso, q)}</span>
+            ${m.receta ? '<div class="badge">Solo con indicación médica</div>' : ""}
+          </div>
+          <div class="arrow">▾</div>
+        </summary>
+        <div class="body">
+          ${fila("Principio activo", m.activo)}
+          ${fila("Cómo tomarlo (adultos)", m.dosis)}
+          ${fila("Precauciones", m.precaucion)}
+          ${fila("No combinar con", m.noCombinar, "alert")}
+        </div>
+      </details>`;
+  }).join("");
+
+  $("count").textContent = `${lista.length} medicamento${lista.length === 1 ? "" : "s"}`;
+  $("empty").classList.toggle("show", lista.length === 0);
+}
+
+$("q").addEventListener("input", render);
+$("clear").addEventListener("click", () => { $("q").value = ""; render(); $("q").focus(); });
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip");
+  if (!b) return;
+  catActiva = b.dataset.cat;
+  renderChips(); render();
+});
+
+renderChips();
+render();
+</script>
+</body>
+</html>
